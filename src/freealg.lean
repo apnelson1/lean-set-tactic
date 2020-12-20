@@ -6,7 +6,7 @@ namespace freealg
  Builds a 'free boolean algebra' whose elements are commutative sums of squarefree
  monomials in n-1 indeterminates X₀, X₁, ... with coefficients mod 2. These elements
  are encoded internally as boolean vectors, via a map under which addition is 'xor' and 
- multiplication is 'and'. 
+ multiplication is 'and', both coordinate-wise. 
 
 ------------------------------------------------------------------------------------/
 
@@ -29,13 +29,13 @@ def var : forall {n : nat} (i : nat), (i < n) → (freealg n)
 | (n+1) 0 Hi := (one, zero)
 | (n+1) (i+1) Hi := let coeff : freealg n := var i (nat.lt_of_succ_lt_succ Hi) in (coeff, coeff)
 
-def plus : forall {n : nat}, (freealg n) → (freealg n) → (freealg n)
+def add : forall {n : nat}, (freealg n) → (freealg n) → (freealg n)
 | 0 a b := bxor a b 
-| (n+1) a b := (plus a.1 b.1, plus a.2 b.2)
+| (n+1) a b := (add a.1 b.1, add a.2 b.2)
 
-def times : forall {n : nat}, (freealg n) → (freealg n) → (freealg n)
+def mul : forall {n : nat}, (freealg n) → (freealg n) → (freealg n)
 | 0 a b := band a b
-| (n+1) a b := (times a.1 b.1, times a.2 b.2)
+| (n+1) a b := (mul a.1 b.1, mul a.2 b.2)
 
 def map : forall {n : nat} (V : vector α n), (freealg n) → α
 | 0 V ff := 0
@@ -53,7 +53,7 @@ lemma on_one : forall {n : nat} (V : vector α n),
 1 = map V one
   | 0 V := rfl
   | (n+1) V := calc
-      1   = V.head + (V.head + 1)                                       : (plus_self_left _ _).symm
+      1   = V.head + (V.head + 1)                                       : (add_self_left _ _).symm
       ... = 1 * V.head + 1 * (V.head + 1)                               : by ring
       ... = (map V.tail one) * V.head + (map V.tail one) * (V.head + 1) : by rw on_one
 
@@ -69,44 +69,30 @@ V.nth ⟨i, Hi⟩ = map V (var i Hi)
       tail_var := map V.tail (var i Hip)
       in calc V.nth ⟨i + 1, Hi⟩ = V.tail.nth ⟨i, Hip⟩                         : by rw [vector.nth_tail, fin.succ.equations._eqn_1]
       ...                       = tail_var                                    : on_var _ _ _
-      ...                       = _                                           : (plus_self_left (tail_var * V.head) _).symm
+      ...                       = _                                           : (add_self_left (tail_var * V.head) _).symm
       ...                       = tail_var * V.head + tail_var * (V.head + 1) : by ring
 
-lemma on_plus : forall {n : nat} (V : vector α n) (a b : freealg n),
-(map V a) + (map V b) = map V (plus a b)
+lemma on_add : forall {n : nat} (V : vector α n) (a b : freealg n),
+(map V a) + (map V b) = map V (add a b)
   | 0 V a b :=
       begin
-        cases a; cases b; unfold map plus bxor; ring,
+        cases a; cases b; unfold map add bxor; ring,
         exact two_eq_zero,
       end
   | (n+1) V a b :=
       begin
-        unfold map plus,
-        rw [←on_plus V.tail a.1 b.1, ←on_plus V.tail a.2 b.2],
+        unfold map add,
+        rw [←on_add V.tail a.1 b.1, ←on_add V.tail a.2 b.2],
         ring,
       end
 
-lemma on_times : forall {n : nat} (V : vector α n) (a b : freealg n),
-(map V a) * (map V b) = map V (times a b)
-  | 0 V a b := by cases a; cases b; unfold map plus band; ring
+lemma on_mul : forall {n : nat} (V : vector α n) (a b : freealg n),
+(map V a) * (map V b) = map V (mul a b)
+  | 0 V a b := by cases a; cases b; unfold map add band; ring
   | (n+1) V a b :=
       begin
-        unfold map times,
-        rw [←on_times V.tail a.1 b.1, ←on_times V.tail a.2 b.2,←expand_product],
+        unfold map mul,
+        rw [←on_mul V.tail a.1 b.1, ←on_mul V.tail a.2 b.2,←expand_product],
       end
-
-----------------------------------------------------------------
-
-/-lemma foo (X : α):  Xᶜᶜᶜᶜ = X :=
-begin
-  let vars := vector.cons X (vector.nil),
-  set_to_ring_eqn,
-  have := on_zero vars,
-  have : X = _ := on_var vars 0 zero_lt_one,
-  rw this, 
-  --erw [(rfl : X = vars 1)], --, on_var vars (one_lt_two)],
-  simp only [on_zero vars , on_one vars, on_plus vars, on_times vars],
-  refl, 
-end-/
 
 end /-namespace-/ freealg
