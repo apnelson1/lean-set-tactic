@@ -85,7 +85,7 @@ lemma symm_diff_self (X : α) :
   by simp only [inf_top_eq]-/
 -----------------------------------------------
 
-@[simp] instance to_comm_ring  : comm_ring α := 
+@[simp] instance to_comm_ring : comm_ring α := 
 { 
   add := λ X Y, symm_diff X Y, 
   add_assoc := λ X Y Z, symm_diff_assoc X Y Z,
@@ -186,14 +186,6 @@ lemma neg_self (X : α) : X = -X :=
 
 @[simp, ba_simp] lemma distrib_cancel (X Y : α) : X*Y + X*(Y+1) = X := 
   by {rw[←left_distrib], simp only [plus_self_left, times_one]} 
-
-
---@[simp, ba_simp] lemma one_sandwich (X : α): 1 + (X+1) = X := sorry 
-
-
---@[simp, ba_simp] lemma mul_cancel_left (S X: α) : S*(S*X) = S*X := sorry 
-
-
 
 lemma one_side {X Y : α} : X = Y ↔ X + Y = 0 := 
   by {refine ⟨λ h, by{rw h, simp}, λ h, _⟩, rw (eq_neg_of_add_eq_zero h), exact (neg_self Y).symm }
