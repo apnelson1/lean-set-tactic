@@ -74,6 +74,7 @@ lemma bar_set (X Y Z : set α):
     simplify_sets [X,Y,Z],
   end
 
+
 lemma bar_finset [fintype α][decidable_eq α](X Y Z: finset α):
   X ⊓ Y ⊓ Z = Z ⊓ Y ⊓ (X ⊔ ⊥) := 
   begin
