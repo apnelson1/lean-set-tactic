@@ -37,6 +37,8 @@ meta def list_with_idx {T : Type} : (list T) → nat -> list (nat × T)
 | (v :: vs) n := (n, v) :: list_with_idx vs (n + 1)
 
 meta def tactic.interactive.introduce_varmap_rewrite (vname : parse ident) (vars : parse ids_list) : tactic unit :=
+  -- TODO: maybe vars should be a list of exprs here?
+  -- Especially if we're getting a list of expressions from get_sets_in_expr
   do
     names <- vars.mmap (fun name, get_local name),
     («let» vname ``(vector _ %%(vars.length)) $ meta_build_vector (names.map to_pexpr)),
@@ -60,6 +62,9 @@ meta def find_matching_type (e : expr) : list expr → tactic expr
                    (tactic.unify e t >> return H) <|> find_matching_type Hs
 set_option pp.all false
 meta def get_sets_in_expr : expr → tactic (list name) 
+-- TODO maybe return the expressions themselves as they're less fragile then raw names
+-- something something expressions have a unique and a pretty name, which is slightly concerning
+-- (maybe).
 | e :=
   match e with
   -- This mostly handles basic expressions 
