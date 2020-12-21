@@ -9,9 +9,10 @@ variables {α : Type*}[boolean_algebra α]
 @[simp] def symm_diff (X Y : α) : α := (X \ Y) ⊔ (Y \ X) 
 @[simp] lemma sdiff_def {X Y : α} : X \ Y = X ⊓ Yᶜ := sdiff_eq 
 
--- commutativity/associativity with explicit params for easier rewriting 
+-- commutativity/associativity with explicit arguments for easier rewriting 
 lemma inf_comm' (X Y : α) : X ⊓ Y = Y ⊓ X := by apply inf_comm 
 lemma inf_assoc' (X Y Z : α) : X ⊓ Y ⊓ Z = X ⊓ (Y ⊓ Z) := by apply inf_assoc  
+
 lemma inf_right_comm (X Y Z : α) : X ⊓ Y ⊓ Z = X ⊓ Z ⊓ Y := 
   by rw [inf_assoc, inf_comm' Y, ←inf_assoc]
 
@@ -34,7 +35,12 @@ end
 lemma symm_diff_assoc (X Y Z : α) : symm_diff (symm_diff X Y) Z = symm_diff X (symm_diff Y Z) := 
 begin
   rw [symm_diff_three, symm_diff_comm, symm_diff_three],
-  ac_refl,   
+  rw [inf_comm' Y Xᶜ, inf_comm' Z, inf_comm' Z, inf_comm' Y X, inf_right_comm Y, 
+      inf_assoc' Z, inf_comm' Y, inf_comm' Z, inf_comm' Yᶜ, inf_comm' Z Y],
+    nth_rewrite 1 ←sup_assoc, 
+    nth_rewrite 4 sup_comm,  
+    repeat {rw ←sup_assoc},
+    repeat {rw ←inf_assoc},
 end
 
 lemma inf_distrib_diff (X Y Z : α) : X ⊓ (Y \ Z) = (X ⊓ Y) \ (X ⊓ Z) := 
@@ -102,6 +108,8 @@ lemma one_add (X : α) : 1 + X = Xᶜ :=
 lemma add_one (X : α) : X + 1 = Xᶜ := 
   by {rw add_comm, from top_symm_diff X} 
 
+------------------------------- Translate to ring notation --------------------------------
+
 lemma top_to_ring: (⊤ : α) = (1 : α) := rfl
 
 lemma bot_to_ring : (⊥ : α) = (0 : α):= rfl
@@ -131,7 +139,9 @@ lemma le_to_ring {X Y : α} :
 lemma diff_to_ring {X Y : α} : 
   X \ Y = X*(Y + 1) := 
   by rw [add_one, ←inf_to_ring, sdiff_def]
----------------------
+
+-------------------------------------------------------------------------------------------
+
 
 @[simp] lemma mul_idem (X : α): 
   X*X = X := 
@@ -146,18 +156,47 @@ lemma diff_to_ring {X Y : α} :
   X + X = 0 := 
   by {ring SOP, rw two_eq_zero, from mul_zero X}
 
-lemma add_self_left (X Y : α):
-   X + (X + Y) = Y :=  
-   by rw [←add_assoc, add_self, zero_add]
 
 @[simp] lemma prod_comp_cancel (X : α) : X*(X+1) = 0 := 
   by {ring SOP, simp}
-  
+
+lemma no_inverses_left {X Y : α} : 
+  X*Y = 1 → X = 1 :=
+  λ h, by {rw [←(mul_one X)] , nth_rewrite 0 ←h, rw [←mul_assoc, mul_idem, h]}
+
+
+-------------------------------- Needed to make freealg tick ---------------------------------
+
 lemma expand_product {X₁ X₂ Y₁ Y₂ S : α} : 
   (X₁ * S + X₂ * (S+1)) * (Y₁ * S + Y₂ * (S+1)) = X₁ * Y₁ * S + X₂ * Y₂ * (S+1):=
   begin
-    simp only [←mul_assoc, mul_comm _ S, prod_comp_cancel, mul_idem, left_distrib, right_distrib, mul_one],
+    simp only [←mul_assoc, mul_comm _ S, prod_comp_cancel, mul_idem, left_distrib, 
+                right_distrib, mul_one],
     ring SOP, 
     simp [mul_comm, two_eq_zero, (by ring : (3:α) = (2:α) + (1:α)), mul_left_comm],
   end
 
+lemma add_self_left (X Y : α):
+   X + (X + Y) = Y :=  
+   by rw [←add_assoc, add_self, zero_add]
+
+-----------------------------------------------------------------------------------------------
+
+------------------------------- Needed for internal tactic stuff ------------------------------
+
+lemma no_inverses (X Y : α) : 
+  X * Y = 1 → (X = 1) ∧ (Y = 1) := 
+  λ h, ⟨no_inverses_left h, by {rw mul_comm at h, from no_inverses_left h}⟩
+
+lemma bring_to_left {α : Type}[boolean_algebra α]{X Y : α} : 
+  (X = Y) = (X + Y + 1 = 1) :=
+  begin
+    ext, split,
+    from λ h, by {rw [h, add_self], exact zero_add 1}, 
+    intro h, 
+    nth_rewrite 1 ←(add_self_left Y (1 :α)) at h, 
+    rw add_assoc at h, 
+    from (add_left_inj (Y + 1)).mp h
+  end
+
+------------------------------------------------------------------------------------------------
