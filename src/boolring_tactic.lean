@@ -59,9 +59,10 @@ meta def find_matching_type (e : expr) : list expr → tactic expr
 | (H :: Hs)  := do t ← tactic.infer_type H,
                    (tactic.unify e t >> return H) <|> find_matching_type Hs
 set_option pp.all false
-meta def print_names_in_expr : expr → tactic (list name) 
+meta def get_sets_in_expr : expr → tactic (list name) 
 | e :=
   match e with
+  -- This mostly handles basic expressions 
   | expr.local_const unique pretty _ _ :=
     do
       expr <- get_local pretty,
@@ -74,13 +75,15 @@ meta def print_names_in_expr : expr → tactic (list name)
         return [pretty])
       <|>
        (do
-        `(boolean_algebra _) <- tactic.infer_type expr,
+        `(%%typ) <- tactic.infer_type expr,
+        boolalg_expr_to_find <- to_expr ``(boolean_algebra %%typ),
+        _ <- find_assumption boolalg_expr_to_find,
         return [pretty])
       <|>
         return [])
   | expr.app e1 e2 := 
-    do l1 <- print_names_in_expr e1, 
-       l2 <- print_names_in_expr e2,
+    do l1 <- get_sets_in_expr e1, 
+       l2 <- get_sets_in_expr e2,
        return (l1 ++ l2)
   | _ := do return []
   end
@@ -89,7 +92,7 @@ def keep_unique {T: Type}[decidable_eq T]: list T -> list T
 | [] := []
 | (x :: xs) := let tl := keep_unique xs in
                 if list.mem x tl then tl else x :: tl
-
+#reduce keep_unique [1, 2, 3, 1, 1]
 
 /- A bound variable with a de-Bruijn index. -/
 -- | var _ := tactic.failed ()
@@ -117,25 +120,26 @@ they are sometimes dummy values. Use `tactic.infer_type` instead. -/
   -/
 -- | expr.macro macro_def body := do return () 
 
-meta def tactic.interactive.simplify_sets (sets : parse ids_list): tactic unit :=
+meta def tactic.interactive.simplify_sets: tactic unit :=
   do
     -- TODO: actually check the goal is of the form of some boolalg equation
     --       also -- do something about hypotheses...
     -- Probably makes sense to automatically include sets mentioned in the goal, analogously to linarith 
     texpr <- target,
-    l <- print_names_in_expr texpr,
-    tactic.trace (keep_unique l),
+    list_of_sets <- get_sets_in_expr texpr,
     vname <- get_unused_name `V,
-    tactic.interactive.introduce_varmap_rewrite vname sets,
+    tactic.interactive.introduce_varmap_rewrite vname (keep_unique list_of_sets),
     vname_expr <- get_local vname,
     to_ring_eqn,
-    simp none tt ([``(freealg.on_one %%vname_expr),
+    -- Some goals are already discharged by this point, so everything else
+    -- goes in a try block.
+    tactic.try (simp none tt ([``(freealg.on_one %%vname_expr),
                    ``(freealg.on_add %%vname_expr),
                    ``(freealg.on_mul %%vname_expr),
                    ``(freealg.on_zero %%vname_expr),
                    ``(freealg.on_var %%vname_expr)].map simp_arg_type.expr)
-                    list.nil loc.wildcard,
-    refl
+                    list.nil loc.wildcard),
+    tactic.try (refl)
 
 
 variables {α : Type}
@@ -147,30 +151,35 @@ variables {α : Type}
 lemma foo_alg (A: boolean_algebra α) (X Y Z P Q W: α): 
   (X ⊔ (Y ⊔ Z)) ⊔ ((W ⊓ P ⊓ Q)ᶜ ⊔ (P ⊔ W ⊔ Q)) = ⊤ :=
 begin
-  simplify_sets [X, Y, Z, P, Q, W],
+  simplify_sets,
 end
 
 lemma foo_set (X Y Z : set α): 
   X ∩ Y ∩ Z = Z ∩ Y ∩ (X ∩ set.univ) := 
   begin
-    simplify_sets [X,Y,Z],
+    simplify_sets,
   end
 
 lemma foo_finset [fintype α][decidable_eq α](X Y Z: finset α):
   X ∩ Y ∩ Z = Z ∩ Y ∩ (X ∪ ∅) := 
   begin
-    simplify_sets [X,Y,Z],
+    simplify_sets,
   end
 
 lemma bar_finset [fintype α][decidable_eq α](X Y Z: finset α):
   X ∩ Y ∩ Z ⊆ (X ∪ Y) ∩ Z := 
   begin
-    simplify_sets [X,Y,Z],
+    simplify_sets,
   end
 
 lemma foo_big (X₀ X₁ X₂ X₃ X₄ X₅ X₆ X₇ X₈ X₉ : set α) : 
   (X₀ ∪ X₁ ∪ (X₂ ∩ X₃) ∪ X₄ ∪ X₅ ∪ (X₆ ∩ X₇ ∩ X₈) ∪ X₉)ᶜ 
     ⊆ (X₉ᶜ ∩ ((X₆ᶜ ∪ ∅) ∪ X₈ᶜ ∪ X₇ᶜᶜᶜ) ∩ X₅ᶜ ∩ (X₀ᶜ \ X₁) ∩ (X₃ᶜ ∪ X₂ᶜ) ∩ X₄ᶜ) := 
   begin
-    simplify_sets [X₀, X₁, X₂, X₃, X₄, X₅, X₆, X₇, X₈, X₉], 
+    simplify_sets,
   end 
+
+lemma dummy (X : set α) : X = X :=
+begin
+  simplify_sets,
+end
