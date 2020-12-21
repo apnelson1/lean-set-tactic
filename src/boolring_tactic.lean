@@ -84,9 +84,12 @@ meta def print_names_in_expr : expr → tactic (list name)
        return (l1 ++ l2)
   | _ := do return []
   end
-meta def keep_unique {T: Type}[decidable_eq T]: list T -> list T 
+
+def keep_unique {T: Type}[decidable_eq T]: list T -> list T 
 | [] := []
-| (x :: xs) := if list.mem x (keep_unique xs) then xs else x :: xs
+| (x :: xs) := let tl := keep_unique xs in
+                if list.mem x tl then tl else x :: tl
+
 
 /- A bound variable with a de-Bruijn index. -/
 -- | var _ := tactic.failed ()
