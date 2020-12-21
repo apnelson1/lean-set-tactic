@@ -120,7 +120,7 @@ they are sometimes dummy values. Use `tactic.infer_type` instead. -/
   -/
 -- | expr.macro macro_def body := do return () 
 
-meta def tactic.interactive.simplify_sets: tactic unit :=
+meta def tactic.interactive.simplify_sets (extra_sets : (parse (optional ids_list))): tactic unit :=
   do
     -- TODO: actually check the goal is of the form of some boolalg equation
     --       also -- do something about hypotheses...
@@ -128,7 +128,8 @@ meta def tactic.interactive.simplify_sets: tactic unit :=
     texpr <- target,
     list_of_sets <- get_sets_in_expr texpr,
     vname <- get_unused_name `V,
-    tactic.interactive.introduce_varmap_rewrite vname (keep_unique list_of_sets),
+    tactic.interactive.introduce_varmap_rewrite vname
+      (keep_unique $ list_of_sets ++ match extra_sets with | some l := l | none := [] end ),
     vname_expr <- get_local vname,
     to_ring_eqn,
     -- Some goals are already discharged by this point, so everything else
@@ -163,23 +164,23 @@ lemma foo_set (X Y Z : set α):
 lemma foo_finset [fintype α][decidable_eq α](X Y Z: finset α):
   X ∩ Y ∩ Z = Z ∩ Y ∩ (X ∪ ∅) := 
   begin
-    simplify_sets,
+    simplify_sets [],
   end
 
 lemma bar_finset [fintype α][decidable_eq α](X Y Z: finset α):
   X ∩ Y ∩ Z ⊆ (X ∪ Y) ∩ Z := 
   begin
-    simplify_sets,
+    simplify_sets [],
   end
 
 lemma foo_big (X₀ X₁ X₂ X₃ X₄ X₅ X₆ X₇ X₈ X₉ : set α) : 
   (X₀ ∪ X₁ ∪ (X₂ ∩ X₃) ∪ X₄ ∪ X₅ ∪ (X₆ ∩ X₇ ∩ X₈) ∪ X₉)ᶜ 
     ⊆ (X₉ᶜ ∩ ((X₆ᶜ ∪ ∅) ∪ X₈ᶜ ∪ X₇ᶜᶜᶜ) ∩ X₅ᶜ ∩ (X₀ᶜ \ X₁) ∩ (X₃ᶜ ∪ X₂ᶜ) ∩ X₄ᶜ) := 
   begin
-    simplify_sets,
+    simplify_sets [],
   end 
 
 lemma dummy (X : set α) : X = X :=
 begin
-  simplify_sets,
+  simplify_sets [],
 end
