@@ -140,4 +140,8 @@ meta def tactic.interactive.simplify_sets (extra_sets : (parse (optional ids_lis
                    ``(freealg.on_zero %%vname_expr),
                    ``(freealg.on_var %%vname_expr)].map simp_arg_type.expr)
                     list.nil loc.wildcard),
+                    /-
+[2, 3, 1]
+-/
+
     tactic.try (refl)
