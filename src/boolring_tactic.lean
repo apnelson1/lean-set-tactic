@@ -120,6 +120,9 @@ they are sometimes dummy values. Use `tactic.infer_type` instead. -/
   -/
 -- | expr.macro macro_def body := do return () 
 
+meta def dummy : tactic unit :=
+  do tactic.trace "Hello World"
+
 meta def tactic.interactive.simplify_sets (extra_sets : (parse (optional ids_list))): tactic unit :=
   do
     -- TODO: actually check the goal is of the form of some boolalg equation
@@ -128,20 +131,17 @@ meta def tactic.interactive.simplify_sets (extra_sets : (parse (optional ids_lis
     texpr <- target,
     list_of_sets <- get_sets_in_expr texpr,
     vname <- get_unused_name `V,
-    tactic.interactive.introduce_varmap_rewrite vname
+    tactic.timetac "rewrite names" $ tactic.interactive.introduce_varmap_rewrite vname
       (keep_unique $ list_of_sets ++ match extra_sets with | some l := l | none := [] end ),
     vname_expr <- get_local vname,
     to_ring_eqn,
     -- Some goals are already discharged by this point, so everything else
     -- goes in a try block.
+    tactic.timetac "final simp" $
     tactic.try (simp none tt ([``(freealg.on_one %%vname_expr),
                    ``(freealg.on_add %%vname_expr),
                    ``(freealg.on_mul %%vname_expr),
                    ``(freealg.on_zero %%vname_expr),
                    ``(freealg.on_var %%vname_expr)].map simp_arg_type.expr)
                     list.nil loc.wildcard),
-                    /-
-[2, 3, 1]
--/
-
-    tactic.try (refl)
+    tactic.timetac "evaluate ring stuff" $ tactic.try (refl)
