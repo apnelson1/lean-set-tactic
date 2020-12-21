@@ -12,7 +12,7 @@ lemma finset.inter_is_inf (α : Type) [decidable_eq α] (X Y : finset α) : X �
 lemma finset.union_is_sup (α : Type) [decidable_eq α] (X Y : finset α) : X ∪ Y = X ⊔ Y := rfl
 lemma finset.empt_is_bot (α : Type) [decidable_eq α] : (finset.has_emptyc.emptyc : finset α) = ⊥ := rfl
 lemma finset.subset_is_le (α : Type) [decidable_eq α] (X Y : finset α) : (X ⊆ Y) = (X ≤ Y) := rfl 
---lemma finset.univ_is_top (α : Type) [decidable_eq α] : (finset.order_top : finset α) = ⊤ := 
+lemma finset.univ_is_top (α : Type) [decidable_eq α] : (finset.univ : finset α) = ⊤ := 
 
 lemma set.union_is_sup (α : Type) (X Y : set α) : X ∪ Y = X ⊔ Y := rfl
 lemma set.inter_is_inf (α : Type) (X Y : set α) : X ∩ Y = X ⊓ Y := rfl
@@ -21,11 +21,15 @@ lemma set.univ_is_top (α : Type) : (set.univ : set α) = ⊤ := rfl
 lemma set.subset_is_le (α : Type) (X Y : set α) : (X ⊆ Y) = (X ≤ Y) := rfl 
 
 meta def to_ring_eqn : tactic unit := do
-`[try {simp only
-    [finset.inter_is_inf, finset.union_is_sup, finset.empt_is_bot, finset.subset_is_le,
-     set.union_is_sup, set.inter_is_inf, set.empt_is_bot, set.univ_is_top, set.subset_is_le,
-     top_to_ring, bot_to_ring, symm_diff_to_ring, inf_to_ring, sup_to_ring, 
-      diff_to_ring, compl_to_ring, le_to_ring] at *}]
+`[
+      try { simp only
+      [finset.inter_is_inf, finset.union_is_sup, finset.empt_is_bot, finset.subset_is_le] at *}, 
+      try {simp only 
+      [set.union_is_sup, set.inter_is_inf, set.empt_is_bot, set.univ_is_top, set.subset_is_le] at *}, 
+      try {simp only 
+      [top_to_ring, bot_to_ring, symm_diff_to_ring,diff_to_ring, compl_to_ring, le_to_ring] at *}, 
+      try {simp only [inf_to_ring, sup_to_ring] at *}
+]
 
 ------------------------------ Normalization Tactics (in a free boolean algebra) -------------------------
 meta def ids_list : lean.parser (list name) := types.list_of ident
@@ -97,7 +101,6 @@ def keep_unique {T: Type}[decidable_eq T]: list T -> list T
 | [] := []
 | (x :: xs) := let tl := keep_unique xs in
                 if list.mem x tl then tl else x :: tl
-#reduce keep_unique [1, 2, 3, 1, 1]
 
 /- A bound variable with a de-Bruijn index. -/
 -- | var _ := tactic.failed ()
