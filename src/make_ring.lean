@@ -12,8 +12,8 @@ variables {α : Type*}[boolean_algebra α]
 -- commutativity/associativity with explicit params for easier rewriting 
 lemma inf_comm' (X Y : α) : X ⊓ Y = Y ⊓ X := by apply inf_comm 
 lemma inf_assoc' (X Y Z : α) : X ⊓ Y ⊓ Z = X ⊓ (Y ⊓ Z) := by apply inf_assoc  
-
-lemma inf_right_comm (X Y Z : α) : X ⊓ Y ⊓ Z = X ⊓ Z ⊓ Y := by rw [inf_assoc, inf_comm' Y, ←inf_assoc]
+lemma inf_right_comm (X Y Z : α) : X ⊓ Y ⊓ Z = X ⊓ Z ⊓ Y := 
+  by rw [inf_assoc, inf_comm' Y, ←inf_assoc]
 
 local attribute [simp] symm_diff sdiff_eq 
 
@@ -34,12 +34,7 @@ end
 lemma symm_diff_assoc (X Y Z : α) : symm_diff (symm_diff X Y) Z = symm_diff X (symm_diff Y Z) := 
 begin
   rw [symm_diff_three, symm_diff_comm, symm_diff_three],
-  rw [inf_comm' Y Xᶜ, inf_comm' Z, inf_comm' Z, inf_comm' Y X, inf_right_comm Y, 
-      inf_assoc' Z, inf_comm' Y, inf_comm' Z, inf_comm' Yᶜ, inf_comm' Z Y],
-    nth_rewrite 1 ←sup_assoc, 
-    nth_rewrite 4 sup_comm,  
-    repeat {rw ←sup_assoc},
-    repeat {rw ←inf_assoc},
+  ac_refl,   
 end
 
 lemma inf_distrib_diff (X Y Z : α) : X ⊓ (Y \ Z) = (X ⊓ Y) \ (X ⊓ Z) := 
