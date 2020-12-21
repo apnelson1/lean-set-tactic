@@ -3,7 +3,7 @@ import freealg
 open interactive
 open lean.parser
 open tactic
-open tactic.interactive 
+open tactic.interactive («let» «have» simp refl)
 open freealg
 
 ------------------------- Conversion Tactic: [(finset α) or (set α) or boolean_lattice] to [boolean_ring] 
@@ -54,12 +54,74 @@ meta def tactic.interactive.introduce_varmap_rewrite (vname : parse ident) (vars
       (list_with_idx names 0),
     return ()
 
+meta def find_matching_type (e : expr) : list expr → tactic expr
+| []         := tactic.failed
+| (H :: Hs)  := do t ← tactic.infer_type H,
+                   (tactic.unify e t >> return H) <|> find_matching_type Hs
+set_option pp.all false
+meta def print_names_in_expr : expr → tactic (list name) 
+| e :=
+  match e with
+  | expr.local_const unique pretty _ _ :=
+    do
+      expr <- get_local pretty,
+      ((do
+        `(finset _) <- tactic.infer_type expr, 
+        return [pretty])
+      <|>
+       (do
+        `(set _) <- tactic.infer_type expr,
+        return [pretty])
+      <|>
+       (do
+        `(boolean_algebra _) <- tactic.infer_type expr,
+        return [pretty])
+      <|>
+        return [])
+  | expr.app e1 e2 := 
+    do l1 <- print_names_in_expr e1, 
+       l2 <- print_names_in_expr e2,
+       return (l1 ++ l2)
+  | _ := do return []
+  end
+meta def keep_unique {T: Type}[decidable_eq T]: list T -> list T 
+| [] := []
+| (x :: xs) := if list.mem x (keep_unique xs) then xs else x :: xs
+
+/- A bound variable with a de-Bruijn index. -/
+-- | var _ := tactic.failed ()
+/- A type universe: `Sort u` -/
+-- | sort l := do return ()
+/- A global constant. These include definitions, constants and inductive type stuff present
+in the environment as well as hard-coded definitions. -/
+-- | const name l := do return ()
+/- [WARNING] Do not trust the types for `mvar` and `local_const`,
+they are sometimes dummy values. Use `tactic.infer_type` instead. -/
+/- An `mvar` is a 'hole' yet to be filled in by the elaborator or tactic state. -/
+-- | mvar unique pretty type := do return ()
+/- A local constant. For example, if our tactic state was `h : P ⊢ Q`, `h` would be a local constant. -/
+-- | local_const unique pretty binder type := do return ()
+/- Function application. -/
+-- | app e1 e2 := do return ()
+/- Lambda abstraction. eg ```(λ a : α, x)`` -/
+-- | lam name binder type body := do return ()
+/- Pi type constructor. eg ```(Π a : α, x)`` and ```(α → β)`` -/
+-- | pi name binder type body := do return ()
+/- An explicit let binding. -/
+--| elet name type assignment body := do return ()
+/- A macro, see the docstring for `macro_def`.
+  The list of expressions are local constants and metavariables that the macro depends on.
+  -/
+-- | expr.macro macro_def body := do return () 
+
 meta def tactic.interactive.simplify_sets (sets : parse ids_list): tactic unit :=
   do
     -- TODO: actually check the goal is of the form of some boolalg equation
     --       also -- do something about hypotheses...
     -- Probably makes sense to automatically include sets mentioned in the goal, analogously to linarith 
-
+    texpr <- target,
+    l <- print_names_in_expr texpr,
+    tactic.trace (keep_unique l),
     vname <- get_unused_name `V,
     tactic.interactive.introduce_varmap_rewrite vname sets,
     vname_expr <- get_local vname,
