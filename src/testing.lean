@@ -35,7 +35,6 @@ lemma foo_big (X₀ X₁ X₂ X₃ X₄ X₅ X₆ X₇ X₈ X₉ : set α) :
     simplify_sets,
   end 
 
-
 lemma foo_fifty_times (X Y Z : set α): false := 
 begin
 
