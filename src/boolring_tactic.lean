@@ -88,7 +88,6 @@ meta def find_splittable_hyp : tactic expr := do
 meta def split_hyps : tactic unit := do
   repeat $ (do
     hyp <- find_splittable_hyp,
-    trace_state,
     cases hyp,
     skip)
 
@@ -238,7 +237,6 @@ meta def simplify_one_set (extra_sets : list name): tactic unit :=
     -- Gather sets in the goal
     texpr <- target,
     list_of_sets <- timetac "get set names" $ get_sets_in_expr texpr,
-    tactic.trace list_of_sets,
     vname <- get_unused_name `V,
     tactic.timetac "rewrite names" $ tactic.interactive.introduce_varmap_rewrite vname
       (keep_unique $ list_of_sets ++ extra_sets),
@@ -259,7 +257,6 @@ meta def split_goal (solver : tactic unit): tactic unit := do
   texpr <- target,
   match texpr with
   | `(%%A ∨ %%B) := do
-    trace $ "splitting: " ++ (to_string A) ++ (to_string B),
     (left >> split_goal <|> right >> split_goal)
   | _ := solver
   end
