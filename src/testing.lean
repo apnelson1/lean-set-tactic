@@ -26,6 +26,7 @@ lemma bar_finset [fintype α][decidable_eq α](X Y Z: finset α):
   X ∩ Y ∩ Z ⊆ (X ∪ Y) ∩ Z := 
   begin
     timed_simplify_sets,
+
   end
 
 lemma foo_big (X₀ X₁ X₂ X₃ X₄ X₅ X₆ X₇ X₈ X₉ : set α) : 
@@ -33,4 +34,13 @@ lemma foo_big (X₀ X₁ X₂ X₃ X₄ X₅ X₆ X₇ X₈ X₉ : set α) :
     ⊆ (X₉ᶜ ∩ ((X₆ᶜ ∪ ∅) ∪ X₈ᶜ ∪ X₇ᶜᶜᶜ) ∩ X₅ᶜ ∩ (X₀ᶜ \ X₁) ∩ (X₃ᶜ ∪ X₂ᶜ) ∩ X₄ᶜ) := 
   begin
     timed_simplify_sets,
+  end 
+
+lemma foo_big_prop (X₀ X₁ X₂ X₃ X₄ X₅ X₆ X₇ X₈ X₉ : Prop) : 
+  (X₀ ∨ X₁ ∨ (X₂ ∧ X₃) ∨ X₄ ∨ X₅ ∨ (X₆ ∧ X₇ ∧  X₈) ∨ X₉)ᶜ 
+    → (X₉ᶜ ∧ ((X₆ᶜ ∨ false) ∨ X₈ᶜ ∨ X₇ᶜᶜᶜ) ∧ X₅ᶜ ∧ (X₀ᶜ \ X₁) 
+    ∧ (X₃ᶜ ∨ X₂ᶜ) ∧ X₄ᶜ) := 
+  begin
+    unfold_projs,
+    tauto!,
   end 
