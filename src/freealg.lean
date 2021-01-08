@@ -45,6 +45,9 @@ def sup : forall {n : nat}, (freealg n) → (freealg n) → (freealg n)
 | 0 a b := bor a b
 | (n + 1) a b := (sup a.1 b.1, sup a.2 b.2)
 
+def compl : forall {n : nat}, (freealg n) → (freealg n)
+| _ a := (sdiff one a)
+
 -- having ring makes it nicer to work with sdiff/inf so we define sup in terms of sdiff and inf.
 lemma sup_to_sdiff_and_inf {n : nat} (a b : (freealg n)) :
   sup a b = (sdiff (sdiff a b) (inf a b)) :=
@@ -157,7 +160,7 @@ instance  freealg_as_boolalg (n : nat) : (boolean_algebra (freealg n)) := {
   le_top := _,
   bot := zero,
   bot_le := _,
-  compl := _,
+  compl := compl,
   sdiff := sdiff,
   inf_compl_le_bot := _,
   top_le_sup_compl := _,
