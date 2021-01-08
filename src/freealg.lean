@@ -95,4 +95,32 @@ lemma on_mul : forall {n : nat} (V : vector α n) (a b : freealg n),
         rw [←on_mul V.tail a.1 b.1, ←on_mul V.tail a.2 b.2,←expand_product],
       end
 
+instance  freealg_as_boolalg (n : nat) : (boolean_algebra (freealg n)) := { 
+  sup := _,
+  le := _,
+  lt := _,
+  le_refl := _,
+  le_trans := _,
+  lt_iff_le_not_le := _,
+  le_antisymm := _,
+  le_sup_left := _,
+  le_sup_right := _,
+  sup_le := _,
+  inf := _,
+  inf_le_left := _,
+  inf_le_right := _,
+  le_inf := _,
+  le_sup_inf := _,
+  top := one,
+  le_top := _,
+  bot := zero,
+  bot_le := _,
+  compl := _,
+  sdiff := _,
+  inf_compl_le_bot := _,
+  top_le_sup_compl := _,
+  sdiff_eq := _ 
+}
+
+
 end /-namespace-/ freealg
