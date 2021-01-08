@@ -13,7 +13,11 @@ namespace freealg
 variables {α : Type*}[boolean_algebra α]
 
 def freealg : nat → Type
+-- base case is bool
 | 0 := bool
+-- inductive case is the coefficient on X_n and the coefficient on X_nᶜ
+-- where the value of the term is CX_n + DX_nᶜ
+-- this determines a region in the Venn diagram that represents the free boolean algebra
 | (n+1) := (freealg n) × (freealg n)
 
 def zero : forall {n : nat}, (freealg n)
@@ -29,13 +33,33 @@ def var : forall {n : nat} (i : nat), (i < n) → (freealg n)
 | (n+1) 0 Hi := (one, zero)
 | (n+1) (i+1) Hi := let coeff : freealg n := var i (nat.lt_of_succ_lt_succ Hi) in (coeff, coeff)
 
-def add : forall {n : nat}, (freealg n) → (freealg n) → (freealg n)
+def sdiff : forall {n : nat}, (freealg n) → (freealg n) → (freealg n)
 | 0 a b := bxor a b 
-| (n+1) a b := (add a.1 b.1, add a.2 b.2)
+| (n+1) a b := (sdiff a.1 b.1, sdiff a.2 b.2)
 
-def mul : forall {n : nat}, (freealg n) → (freealg n) → (freealg n)
+def inf : forall {n : nat}, (freealg n) → (freealg n) → (freealg n)
 | 0 a b := band a b
-| (n+1) a b := (mul a.1 b.1, mul a.2 b.2)
+| (n+1) a b := (inf a.1 b.1, inf a.2 b.2)
+
+def sup : forall {n : nat}, (freealg n) → (freealg n) → (freealg n)
+| 0 a b := bor a b
+| (n + 1) a b := (sup a.1 b.1, sup a.2 b.2)
+
+-- having ring makes it nicer to work with sdiff/inf so we define sup in terms of sdiff and inf.
+lemma sup_to_sdiff_and_inf {n : nat} (a b : (freealg n)) :
+  sup a b = (sdiff (sdiff a b) (inf a b)) :=
+  begin
+    induction n,
+    {
+      unfold sup sdiff inf, cases a; cases b; refl
+    },
+    {
+      unfold sup sdiff inf,
+      rewrite (n_ih a.1 b.1),
+      rewrite (n_ih a.2 b.2),
+    }
+  end
+  
 
 def map : forall {n : nat} (V : vector α n), (freealg n) → α
 | 0 V ff := 0
@@ -73,30 +97,48 @@ V.nth ⟨i, Hi⟩ = map V (var i Hi)
       ...                       = tail_var * V.head + tail_var * (V.head + 1) : by ring
 
 lemma on_add : forall {n : nat} (V : vector α n) (a b : freealg n),
-(map V a) + (map V b) = map V (add a b)
+(map V a) + (map V b) = map V (sdiff a b)
   | 0 V a b :=
       begin
-        cases a; cases b; unfold map add bxor; ring,
+        cases a; cases b; unfold map sdiff bxor; ring,
         exact two_eq_zero,
       end
   | (n+1) V a b :=
       begin
-        unfold map add,
+        unfold map sdiff,
         rw [←on_add V.tail a.1 b.1, ←on_add V.tail a.2 b.2],
         ring,
       end
 
 lemma on_mul : forall {n : nat} (V : vector α n) (a b : freealg n),
-(map V a) * (map V b) = map V (mul a b)
-  | 0 V a b := by cases a; cases b; unfold map add band; ring
+(map V a) * (map V b) = map V (inf a b)
+  | 0 V a b := by cases a; cases b; unfold map inf band; ring
   | (n+1) V a b :=
       begin
-        unfold map mul,
+        unfold map inf,
         rw [←on_mul V.tail a.1 b.1, ←on_mul V.tail a.2 b.2,←expand_product],
       end
 
+-- Really, there should be a better way to do this.
+lemma on_inf : forall {n : nat} (V : vector α n) (a b : freealg n),
+(map V a) ⊓ (map V b) = map V (inf a b) :=
+begin
+  intros,
+  change (map V a) * (map V b) = map V (inf a b),
+  apply on_mul,
+end
+lemma on_sup : forall {n : nat} (V : vector α n) (a b : freealg n),
+(map V a) ⊔ (map V b) = map V (sup a b) :=
+begin
+  intros,
+  rewrite sup_to_ring,
+  rewrite sup_to_sdiff_and_inf,
+  rewrite <- on_add, rewrite <- on_add, rewrite <- on_mul,
+end
+
+
 instance  freealg_as_boolalg (n : nat) : (boolean_algebra (freealg n)) := { 
-  sup := _,
+  sup := sup,
   le := _,
   lt := _,
   le_refl := _,
@@ -106,7 +148,7 @@ instance  freealg_as_boolalg (n : nat) : (boolean_algebra (freealg n)) := {
   le_sup_left := _,
   le_sup_right := _,
   sup_le := _,
-  inf := _,
+  inf := inf,
   inf_le_left := _,
   inf_le_right := _,
   le_inf := _,
@@ -116,7 +158,7 @@ instance  freealg_as_boolalg (n : nat) : (boolean_algebra (freealg n)) := {
   bot := zero,
   bot_le := _,
   compl := _,
-  sdiff := _,
+  sdiff := sdiff,
   inf_compl_le_bot := _,
   top_le_sup_compl := _,
   sdiff_eq := _ 
