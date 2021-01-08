@@ -139,11 +139,26 @@ begin
   rewrite <- on_add, rewrite <- on_add, rewrite <- on_mul,
 end
 
+-- ≤ 
+def le : forall {n : nat}, (freealg n) → (freealg n) → Prop
+| 0 ff ff := true
+| 0 ff tt := true
+| 0 tt ff := false
+| 0 tt tt := true
+| (n+1) a b := le a.1 b.1 ∧ le a.2 b.2
+
+-- < 
+def lt : forall {n : nat}, (freealg n) → (freealg n) → Prop
+| 0 ff ff := false
+| 0 ff tt := true
+| 0 tt ff := false
+| 0 tt tt := false
+| (n+1) a b := lt a.1 b.1 ∧ lt a.2 b.2
 
 instance  freealg_as_boolalg (n : nat) : (boolean_algebra (freealg n)) := { 
   sup := sup,
-  le := _,
-  lt := _,
+  le := le,
+  lt := lt,
   le_refl := _,
   le_trans := _,
   lt_iff_le_not_le := _,
