@@ -4,7 +4,7 @@ namespace freealg
 /----------------------------------------------------------------------------------
  
  Builds a 'free boolean algebra' whose elements are commutative sums of squarefree
- monomials in n-1 indeterminates X₀, X₁, ... with coefficients mod 2. These elements
+ monomials in n indeterminates X₀, X₁, ... with coefficients mod 2. These elements
  are encoded internally as boolean vectors, via a map under which addition is 'xor' and 
  multiplication is 'and', both coordinate-wise. 
 
