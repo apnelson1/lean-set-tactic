@@ -208,7 +208,7 @@ meta def every_freealg_proof : tactic unit := do
       tactic.cases_core freealg_var,
       tactic.skip),
     ctx <- tactic.local_context,
-    tactic.all_goals $ tactic.try $ `[simp [le, lt, sup, inf, symmdiff, sdiff, compl] at *],
+    tactic.all_goals $ tactic.try $ `[simp only [prod.mk.inj_iff, le, lt, sup, inf, symmdiff, sdiff, compl] at *],
     tactic.all_goals $ tactic.try $ `[tauto]),
   tactic.skip
 
