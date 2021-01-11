@@ -23,6 +23,7 @@ def freealg : nat → Type
 -- this determines a region in the Venn diagram that represents the free boolean algebra
 | (n+1) := (freealg n) × (freealg n)
 
+section operations
 def zero : forall {n : nat}, (freealg n)
 | 0 := ff
 | (n+1) := (zero, zero)
@@ -54,8 +55,17 @@ def compl : forall {n : nat}, (freealg n) → (freealg n)
 def sdiff : forall {n : nat}, (freealg n) → (freealg n) → (freealg n)
 | _ a b := (inf a (compl b))
 
+def map : forall {n : nat} (V : vector α n), (freealg n) → α
+| 0 V ff := 0
+| 0 V tt := 1
+| (n+1) V a := (map V.tail a.1) * V.head + (map V.tail a.2) * (V.head + 1)
+end operations
+
+section conversion_lemmas
+-- Our proofs rely on having ring around
+-- TODO: do we need to have ring around (can we get rid of some notation)
 -- having ring makes it nicer to work with symmdiff/inf so we define sup in terms of symmdiff and inf.
-lemma sup_to_sdiff_and_inf {n : nat} (a b : (freealg n)) :
+lemma sup_to_symmdiff_and_inf {n : nat} (a b : (freealg n)) :
   sup a b = (symmdiff (symmdiff a b) (inf a b)) :=
   begin
     induction n,
@@ -69,12 +79,6 @@ lemma sup_to_sdiff_and_inf {n : nat} (a b : (freealg n)) :
     }
   end
   
-
-def map : forall {n : nat} (V : vector α n), (freealg n) → α
-| 0 V ff := 0
-| 0 V tt := 1
-| (n+1) V a := (map V.tail a.1) * V.head + (map V.tail a.2) * (V.head + 1)
-
 -- These are basic lemmas about how map transforms freealg equations into 
 -- equations in the incoming boolean algebra
 lemma on_zero : forall {n : nat} (V : vector α n),
@@ -128,7 +132,7 @@ lemma on_mul : forall {n : nat} (V : vector α n) (a b : freealg n),
         rw [←on_mul V.tail a.1 b.1, ←on_mul V.tail a.2 b.2,←expand_product],
       end
 
--- These two lemmas are useful when ⊔ and ⊓ are in the mix
+-- These four lemmas are useful when ⊔ and ⊓, ᶜ, and \ are in the mix
 lemma on_inf : forall {n : nat} (V : vector α n) (a b : freealg n),
 (map V a) ⊓ (map V b) = map V (inf a b) :=
 begin
@@ -141,10 +145,27 @@ lemma on_sup : forall {n : nat} (V : vector α n) (a b : freealg n),
 begin
   intros,
   rewrite sup_to_ring,
-  rewrite sup_to_sdiff_and_inf,
+  rewrite sup_to_symmdiff_and_inf,
   rewrite <- on_add, rewrite <- on_add, rewrite <- on_mul,
 end
+lemma on_compl : forall {n : nat} (V : vector α n) (a : freealg n),
+(map V a)ᶜ = (map V (compl a)) :=
+begin
+  intros,
+  rewrite compl_to_ring, unfold compl,
+  rewrite <- on_add, rewrite <- on_one, ring, 
+end
+lemma on_sdiff : forall {n : nat} (V : vector α n) (a b : freealg n),
+(map V a) \ (map V b) = (map V (sdiff a b)) :=
+begin
+  intros,
+  rewrite diff_to_ring, unfold sdiff,
+  rewrite <- on_mul, unfold compl, rewrite <- on_add,
+  rewrite <- on_one, ring,
+end
+end conversion_lemmas
 
+section boolean_algebra_instance
 -- discharging (decidable true) and (decidable false) as that's easy
 meta def construct_decidable : tactic unit := tactic.focus1 $ do
   target <- tactic.target,
@@ -191,7 +212,6 @@ meta def every_freealg_proof : tactic unit := do
     tactic.all_goals $ tactic.try $ `[tauto]),
   tactic.skip
 
-
 instance freealg_as_boolalg (n : nat) : (boolean_algebra (freealg n)) := { 
   sup := sup,
   le := le,
@@ -218,6 +238,6 @@ instance freealg_as_boolalg (n : nat) : (boolean_algebra (freealg n)) := {
   top_le_sup_compl := by every_freealg_proof,
   sdiff_eq := by every_freealg_proof,
 }
-
+end boolean_algebra_instance
 
 end /-namespace-/ freealg
