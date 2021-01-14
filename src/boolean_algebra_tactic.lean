@@ -218,6 +218,34 @@ example (X₀ X₁ X₂ X₃ X₄ X₅ X₆ X₇ X₈ X₉ : α) :
     ≤ (X₉ᶜ ⊓ ((X₆ᶜ ⊔ ⊥) ⊔ X₈ᶜ ⊔ X₇ᶜᶜᶜ) ⊓ X₅ᶜ ⊓ (X₀ᶜ \ X₁) ⊓ (X₃ᶜ ⊔ X₂ᶜ) ⊓ X₄ᶜ) :=
 by tactic.timetac "big" $ boolean_algebra_tactic
 
+example (A B C D E F G : α) :
+  A ≤ B →
+  B ≤ C →
+  C ≤ D ⊓ E →
+  A ≤ E :=
+begin
+  simp only [rw_sdiff, rw_eq, rw_le, rw_bot, rw_top, rw_sup, rw_inf, rw_compl] at *,
+  intros H1 H2 H3 u H4,
+  specialize (H1 u),
+  specialize (H2 u),
+  specialize (H3 u),
+  tauto!
+end
+
+example (A B C D E F G : α) :
+  A ≤ B →
+  B ≤ C →
+  C ≤ D ⊓ E →
+  D ≤ Fᶜ →
+  (A ⊓ F = ⊥) :=
+begin
+  simp only [rw_sdiff, rw_eq, rw_le, rw_bot, rw_top, rw_sup, rw_inf, rw_compl] at *,
+  intros H1 H2 H3 H4,
+  split;
+  intro u, specialize (H1 u), specialize (H2 u), specialize (H3 u), specialize (H4 u), tauto!,
+  tauto!,
+end
+
 end tactic
 
 end order.boolean_algebra
