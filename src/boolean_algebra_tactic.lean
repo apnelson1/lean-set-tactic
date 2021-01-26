@@ -217,7 +217,6 @@ instance boolean_algebra_base_extensionality (α : Type) [boolean_algebra α]
   ext_meet := by apply rw_sup,
   ext_join := by apply rw_inf,
   ext_compl := by apply rw_compl,
-  ext_em := by tauto!,
 }
 
 end extensionality

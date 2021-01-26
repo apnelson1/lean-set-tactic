@@ -1,19 +1,74 @@
 import extensionality
 import boolean_algebra_tactic
 import finset_tactic
+import tactic
+import tactic.interactive
 
 open boolean_algebra_extensionality
+
 
 /-meta def simpl_tactic : tactic unit :=
 `[simp only [simpl_sdiff, simpl_eq, ext_le, ext_bot, ext_top, ext_meet, ext_join, ext_compl] at *; tauto!]-/
 
+meta def boolean_algebra_types_in_expr : expr → tactic (list expr)
+| e :=
+  match e with
+  -- This mostly handles basic expressions 
+  | expr.local_const unique pretty _ _ :=
+    do
+      ((do
+        `(%%boolalg_typ) <- tactic.infer_type e,
+        match boolalg_typ with 
+        -- finset T gets returned directly 
+        | `(finset %%set_typ) := do return [boolalg_typ]
+        -- set T gets returne directly
+        | `(set %%set_typ) := do return [boolalg_typ]
+        -- work needs to be done if we're not working with sets/finsets,
+        -- but with a type with a [boolean_algebra T] instance on it.
+        | _ := (do 
+          boolalg_hyp <- tactic.to_expr ``(infer_instance : boolean_algebra %%boolalg_typ),
+          return [boolalg_typ])
+        end)
+      <|>
+        return [])
+  | expr.app e1 e2 := 
+    do l1 <- boolean_algebra_types_in_expr e1, 
+       l2 <- boolean_algebra_types_in_expr e2,
+       return (l1 ++ l2)
+  | _ := do return []
+  end
+
+def unique_list {T: Type}[decidable_eq T]: list T -> list T 
+| [] := []
+| (x :: xs) := let tl := unique_list xs in
+                if list.mem x tl then tl else x :: tl
+ 
+meta def rewrite_for_type (type : expr) : (tactic unit) := do
+  name <- tactic.get_unused_name `_instrw,
+  instance_type <- tactic.to_expr ``(boolean_algebra_extensionality %%type _),
+  expr <- tactic.to_expr ``(by apply_instance : %%instance_type),
+  tactic.trace instance_type,
+  new_hyp <- tactic.assertv name instance_type expr,
+  (tactic.interactive.simp none tt 
+              ([``((%%new_hyp).simpl_eq),
+                ``((%%new_hyp).ext_le),
+                ``((%%new_hyp).ext_bot),
+                ``((%%new_hyp).ext_top),
+                ``((%%new_hyp).ext_meet),
+                ``((%%new_hyp).ext_join),
+                ``((%%new_hyp).ext_compl)].map tactic.simp_arg_type.expr)
+                  list.nil interactive.loc.wildcard),
+  tactic.skip
+
 example (α : Type) [boolean_algebra α] (X Y Z P Q W : α) :
   (X ⊔ (Y ⊔ Z)) ⊔ ((W ⊓ P ⊓ Q)ᶜ ⊔ (P ⊔ W ⊔ Q)) = ⊤ :=
 begin
-  letI : (boolean_algebra_extensionality α (order.boolean_algebra.ultrafilter α)) := begin
-    apply_instance,
-  end,
-  simp only [_inst.simpl_eq, _inst.ext_le, _inst.ext_bot, _inst.ext_top, _inst.ext_meet, _inst.ext_join, _inst.ext_compl],
+  (do
+    goal <- tactic.target,
+    types <- boolean_algebra_types_in_expr goal,
+    tactic.trace (unique_list types),
+    rewrite_for_type (list.head types),
+    tactic.skip),
   tauto!,
 end
 
@@ -21,11 +76,13 @@ end
 example (T : Type) [fintype T] (X Y Z P Q W : finset T) [decidable_eq T] :
   (X ⊔ (Y ⊔ Z)) ⊔ ((W ⊓ P ⊓ Q)ᶜ ⊔ (P ⊔ W ⊔ Q)) = ⊤ :=
 begin
-  letI : (boolean_algebra_extensionality (finset T) T) := begin
-    apply_instance,
-  end,
-  simp only [_inst.simpl_eq, _inst.ext_le, _inst.ext_bot, _inst.ext_top, _inst.ext_meet, _inst.ext_join, _inst.ext_compl],
-  tauto,
+  (do
+    goal <- tactic.target,
+    types <- boolean_algebra_types_in_expr goal,
+    tactic.trace (unique_list types),
+    rewrite_for_type (list.head types),
+    tactic.skip),  
+    tauto,
 end
 
 /-
