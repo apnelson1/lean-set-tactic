@@ -31,11 +31,21 @@ meta def boolean_algebra_types_in_expr : expr → tactic (list expr)
         end)
       <|>
         return [])
+  -- applications
   | expr.app e1 e2 := 
     do l1 <- boolean_algebra_types_in_expr e1, 
        l2 <- boolean_algebra_types_in_expr e2,
        return (l1 ++ l2)
-  | _ := do return []
+  -- abstracts
+  | expr.lam _ _ argtyp body :=
+    do l1 <- boolean_algebra_types_in_expr argtyp, 
+      l2 <- boolean_algebra_types_in_expr body,
+      return (l1 ++ l2)
+  | expr.pi _ _ argtyp body :=
+    do l1 <- boolean_algebra_types_in_expr argtyp, 
+      l2 <- boolean_algebra_types_in_expr body,
+      return (l1 ++ l2)
+  | _ := return []
   end
 
 def unique_list {T: Type}[decidable_eq T]: list T -> list T 
@@ -72,8 +82,7 @@ begin
   tauto!,
 end
 
-
-example (T : Type) [fintype T] (X Y Z P Q W : finset T) [decidable_eq T] :
+example (T : Type) [fintype T] [decidable_eq T] (X Y Z P Q W : finset T)  :
   (X ⊔ (Y ⊔ Z)) ⊔ ((W ⊓ P ⊓ Q)ᶜ ⊔ (P ⊔ W ⊔ Q)) = ⊤ :=
 begin
   (do
@@ -85,6 +94,23 @@ begin
     tauto,
 end
 
+example (α : Type) [boolean_algebra α]  (A B C D E F G : α) :
+  A ≤ B →
+  B ≤ C →
+  C ≤ D ⊓ E →
+  D ≤ Fᶜ →
+  (A ⊓ F = ⊥) :=
+begin
+  (do
+    goal <- tactic.target,
+    types <- boolean_algebra_types_in_expr goal,
+    tactic.trace (unique_list types),
+    rewrite_for_type (list.head types),
+    tactic.skip), 
+  intros,
+  split; intro u,
+  tauto!, 
+end 
 /-
 example (X₀ X₁ X₂ X₃ X₄ X₅ X₆ X₇ X₈ X₉ : α) :
   (X₀ ⊔ X₁ ⊔ (X₂ ⊓ X₃) ⊔ X₄ ⊔ X₅ ⊔ (X₆ ⊓ X₇ ⊓ X₈) ⊔ X₉)ᶜ
