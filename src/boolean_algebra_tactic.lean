@@ -177,8 +177,7 @@ end ultrafilter
 namespace extensionality
 open ultrafilter
 
-lemma rw_sdiff : (x \ y) = x ⊓ yᶜ :=
-sdiff_eq
+
 
 lemma rw_eq : (x = y) ↔ (x ≤ y) ∧ (y ≤ x) :=
 le_antisymm_iff
@@ -206,13 +205,19 @@ lemma rw_compl : u ∈ xᶜ ↔ ¬(u ∈ x) :=
 ⟨(λ hc h, u.not_and_compl x ⟨h, hc⟩),
  (or.resolve_left (u.or_compl x))⟩
 
+lemma rw_sdiff : u ∈ x \ y ↔ u ∈ x ∧ u ∉ y := begin
+  rewrite sdiff_eq,
+  rewrite <- rw_compl,  
+  rw rw_inf,
+end
+
 instance boolean_algebra_base_extensionality (α : Type) [boolean_algebra α] 
   : (boolean_algebra_extensionality α (ultrafilter α)) := 
 {
-  simpl_sdiff := by apply rw_sdiff, 
   simpl_eq := by apply rw_eq,
   ext_top := by apply rw_top,
   ext_bot := by apply rw_bot,
+  ext_sdiff := by apply rw_sdiff, 
   ext_le := by apply rw_le, 
   ext_meet := by apply rw_sup,
   ext_join := by apply rw_inf,

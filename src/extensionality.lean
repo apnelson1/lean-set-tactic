@@ -12,10 +12,10 @@ class boolean_algebra_extensionality
   [has_top T]
   [has_le T]
    :=
-  (simpl_sdiff : ∀ {A B : T}, A \ B = A ⊓ Bᶜ )
   (simpl_eq : ∀ {A B : T}, A = B ↔ A ≤ B ∧ B ≤ A)
   (ext_top : ∀ {e}, e ∈ (⊤ : T) ↔ true)
   (ext_bot : ∀ {e}, e ∈ (⊥ : T) ↔ false)
+  (ext_sdiff : ∀ {A B : T} e, e ∈ A \ B ↔ e ∈ A ∧ ¬ e ∈ B)
   (ext_le : ∀ {A B : T}, A ≤ B ↔ ∀ e, e ∈ A →  e ∈ B) 
   (ext_meet : ∀ {A B : T} {e}, e ∈ (A ⊔ B) ↔ e ∈ A ∨ e ∈ B)
   (ext_join : ∀ {A B : T} {e}, e ∈ (A ⊓ B) ↔ e ∈ A ∧ e ∈ B)

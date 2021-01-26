@@ -63,6 +63,7 @@ meta def rewrite_for_type (type : expr) : (tactic unit) := do
               ([``((%%new_hyp).simpl_eq),
                 ``((%%new_hyp).ext_le),
                 ``((%%new_hyp).ext_bot),
+                ``((%%new_hyp).ext_sdiff),
                 ``((%%new_hyp).ext_top),
                 ``((%%new_hyp).ext_meet),
                 ``((%%new_hyp).ext_join),

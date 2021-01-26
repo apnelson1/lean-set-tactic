@@ -6,10 +6,10 @@ namespace extensionality
 instance finset_extensionality (T : Type) [fintype T] [decidable_eq T] :
   (boolean_algebra_extensionality (finset T) T) :=
 {
-  simpl_sdiff := by tidy,
   simpl_eq := by tidy,
   ext_top := by unfold_projs; finish,
   ext_bot := by tidy,
+  ext_sdiff := by tidy,
   ext_le := by tidy, 
   ext_meet := by tidy,
   ext_join := by simp only [finset.inf_eq_inter, forall_const, iff_self, finset.mem_inter, forall_true_iff],
