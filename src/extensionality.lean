@@ -19,5 +19,4 @@ class boolean_algebra_extensionality
   (ext_le : ∀ {A B : T}, A ≤ B ↔ ∀ e, e ∈ A →  e ∈ B) 
   (ext_meet : ∀ {A B : T} {e}, e ∈ (A ⊔ B) ↔ e ∈ A ∨ e ∈ B)
   (ext_join : ∀ {A B : T} {e}, e ∈ (A ⊓ B) ↔ e ∈ A ∧ e ∈ B)
-  (ext_compl : ∀ {A : T} {e}, e ∈ Aᶜ ↔ ¬ e ∈ A) 
-  (ext_em : ∀ {A : T} {e}, e ∈ A ∨ ¬ e ∈ A)
+  (ext_compl : ∀ {A : T} {e}, e ∈ Aᶜ ↔ ¬ e ∈ A)
