@@ -1,7 +1,7 @@
 import order.boolean_algebra
 import order.zorn
 import tactic.ext
-
+import .extensionality
 open_locale classical
 
 namespace order.boolean_algebra
@@ -174,7 +174,7 @@ let filters := {f : filter α // f.pred x ∧ ¬(f.pred y)},
 
 end ultrafilter
 
-namespace tactic
+namespace extensionality
 open ultrafilter
 
 lemma rw_sdiff : (x \ y) = x ⊓ yᶜ :=
@@ -206,46 +206,20 @@ lemma rw_compl : u ∈ xᶜ ↔ ¬(u ∈ x) :=
 ⟨(λ hc h, u.not_and_compl x ⟨h, hc⟩),
  (or.resolve_left (u.or_compl x))⟩
 
-meta def boolean_algebra_tactic : tactic unit :=
-`[simp only [rw_sdiff, rw_eq, rw_le, rw_bot, rw_top, rw_sup, rw_inf, rw_compl] at *; tauto!]
+instance boolean_algebra_base_extensionality (α : Type) [boolean_algebra α] 
+  : (boolean_algebra_extensionality α (ultrafilter α)) := 
+{
+  simpl_sdiff := by apply rw_sdiff, 
+  simpl_eq := by apply rw_eq,
+  ext_top := by apply rw_top,
+  ext_bot := by apply rw_bot,
+  ext_le := by apply rw_le, 
+  ext_meet := by apply rw_sup,
+  ext_join := by apply rw_inf,
+  ext_compl := by apply rw_compl,
+  ext_em := by tauto!,
+}
 
-example (X Y Z P Q W : α) :
-  (X ⊔ (Y ⊔ Z)) ⊔ ((W ⊓ P ⊓ Q)ᶜ ⊔ (P ⊔ W ⊔ Q)) = ⊤ :=
-by tactic.timetac "small" $ boolean_algebra_tactic
-
-example (X₀ X₁ X₂ X₃ X₄ X₅ X₆ X₇ X₈ X₉ : α) :
-  (X₀ ⊔ X₁ ⊔ (X₂ ⊓ X₃) ⊔ X₄ ⊔ X₅ ⊔ (X₆ ⊓ X₇ ⊓ X₈) ⊔ X₉)ᶜ
-    ≤ (X₉ᶜ ⊓ ((X₆ᶜ ⊔ ⊥) ⊔ X₈ᶜ ⊔ X₇ᶜᶜᶜ) ⊓ X₅ᶜ ⊓ (X₀ᶜ \ X₁) ⊓ (X₃ᶜ ⊔ X₂ᶜ) ⊓ X₄ᶜ) :=
-by tactic.timetac "big" $ boolean_algebra_tactic
-
-example (A B C D E F G : α) :
-  A ≤ B →
-  B ≤ C →
-  C ≤ D ⊓ E →
-  A ≤ E :=
-begin
-  simp only [rw_sdiff, rw_eq, rw_le, rw_bot, rw_top, rw_sup, rw_inf, rw_compl] at *,
-  intros H1 H2 H3 u H4,
-  specialize (H1 u),
-  specialize (H2 u),
-  specialize (H3 u),
-  tauto!
-end
-
-example (A B C D E F G : α) :
-  A ≤ B →
-  B ≤ C →
-  C ≤ D ⊓ E →
-  D ≤ Fᶜ →
-  (A ⊓ F = ⊥) :=
-begin
-  simp only [rw_sdiff, rw_eq, rw_le, rw_bot, rw_top, rw_sup, rw_inf, rw_compl] at *,
-  intros H1 H2 H3 H4,
-  split;
-  intro u, specialize (H1 u), specialize (H2 u), specialize (H3 u), specialize (H4 u), tauto!,
-  tauto!,
-end
-
-end tactic
+end extensionality
 
 end order.boolean_algebra
