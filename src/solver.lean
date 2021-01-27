@@ -132,7 +132,7 @@ example (α : Type) [boolean_algebra α]  (A B C D E F G : α) :
   D ≤ Fᶜ →
   (A ⊓ F = ⊥) :=
 begin
-  (do
+  tactic.timetac "fast" $ `[(do
     types <- gather_types,
     types.mmap rewrite_for_type,
     tactic.skip),
@@ -140,9 +140,19 @@ begin
   specialize (H1 e);
   specialize (H2 e);
   specialize (H3 e);
-  specialize (H4 e); tauto!,
-
+  specialize (H4 e); tauto!],
 end
+
+example (α : Type) [boolean_algebra α]  (A B C D E F G : α) :
+  A ≤ B →
+  B ≤ C →
+  C ≤ D ⊓ E →
+  D ≤ Fᶜ →
+  (A ⊓ F = ⊥) :=
+begin
+  tactic.timetac "slow" $  solver,
+end
+
 
 
 /-
