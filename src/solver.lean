@@ -4,8 +4,6 @@ import finset_tactic
 import tactic
 import tactic.interactive
 
-open boolean_algebra_extensionality
-
 
 /-meta def simpl_tactic : tactic unit :=
 `[simp only [simpl_sdiff, simpl_eq, ext_le, ext_bot, ext_top, ext_meet, ext_join, ext_compl] at *; tauto!]-/
@@ -52,22 +50,39 @@ def unique_list {T: Type}[decidable_eq T]: list T -> list T
 | [] := []
 | (x :: xs) := let tl := unique_list xs in
                 if list.mem x tl then tl else x :: tl
- 
-meta def rewrite_for_type (type : expr) : (tactic unit) := do
+
+meta def infer_base_simp_lemmas (type : expr) : (tactic (list pexpr)) := do
   name <- tactic.get_unused_name `_instrw,
-  instance_type <- tactic.to_expr ``(boolean_algebra_extensionality %%type _),
+  instance_type <- tactic.to_expr ``(boolalg_ext_lemmas %%type _),
   expr <- tactic.to_expr ``(by apply_instance : %%instance_type),
-  tactic.trace instance_type,
   new_hyp <- tactic.assertv name instance_type expr,
-  (tactic.interactive.simp none tt 
-              ([``((%%new_hyp).simpl_eq),
-                ``((%%new_hyp).ext_le),
-                ``((%%new_hyp).ext_bot),
-                ``((%%new_hyp).ext_sdiff),
-                ``((%%new_hyp).ext_top),
-                ``((%%new_hyp).ext_meet),
-                ``((%%new_hyp).ext_join),
-                ``((%%new_hyp).ext_compl)].map tactic.simp_arg_type.expr)
+  return [``((%%new_hyp).simpl_eq),
+          ``((%%new_hyp).ext_le),
+          ``((%%new_hyp).ext_bot),
+          ``((%%new_hyp).ext_sdiff),
+          ``((%%new_hyp).ext_meet),
+          ``((%%new_hyp).ext_join)]
+
+meta def infer_top_simp_lemmas (type : expr) : (tactic (list pexpr)) := (do
+  name <- tactic.get_unused_name `_instrw,
+  instance_type <- tactic.to_expr ``(boolalg_ext_lemmas_top %%type _),
+  expr <- tactic.to_expr ``(by apply_instance : %%instance_type),
+  new_hyp <- tactic.assertv name instance_type expr,
+  return [``((%%new_hyp).ext_top)]) <|> return []
+
+meta def infer_compl_simp_lemmas (type : expr) : (tactic (list pexpr)) := (do
+  name <- tactic.get_unused_name `_instrw,
+  instance_type <- tactic.to_expr ``(boolalg_ext_lemmas_compl %%type _),
+  expr <- tactic.to_expr ``(by apply_instance : %%instance_type),
+  new_hyp <- tactic.assertv name instance_type expr,
+  return [``((%%new_hyp).ext_compl)]) <|> return []
+
+meta def rewrite_for_type (type : expr) : (tactic unit) := do
+  simp_lemmas <- infer_base_simp_lemmas type,
+  compl_lemmas <- infer_compl_simp_lemmas type,
+  top_lemmas <- infer_top_simp_lemmas type,
+  tactic.try (tactic.interactive.simp none tt 
+              ((simp_lemmas ++ compl_lemmas ++ top_lemmas).map tactic.simp_arg_type.expr)
                   list.nil interactive.loc.wildcard),
   tactic.skip
 
@@ -77,7 +92,6 @@ begin
   (do
     goal <- tactic.target,
     types <- boolean_algebra_types_in_expr goal,
-    tactic.trace (unique_list types),
     rewrite_for_type (list.head types),
     tactic.skip),
   tauto!,
@@ -89,11 +103,23 @@ begin
   (do
     goal <- tactic.target,
     types <- boolean_algebra_types_in_expr goal,
-    tactic.trace (unique_list types),
     rewrite_for_type (list.head types),
     tactic.skip),  
     tauto,
 end
+
+-- note the lack of fintype T here
+example (T : Type) [decidable_eq T] (X Y Z P Q W : finset T)  :
+  X ≤ (X ⊔ Y) :=
+begin
+  (do
+    goal <- tactic.target,
+    types <- boolean_algebra_types_in_expr goal,
+    rewrite_for_type (list.head types),
+    tactic.skip),  
+    tauto,
+end
+
 
 example (α : Type) [boolean_algebra α]  (A B C D E F G : α) :
   A ≤ B →

@@ -211,17 +211,27 @@ lemma rw_sdiff : u ∈ x \ y ↔ u ∈ x ∧ u ∉ y := begin
   rw rw_inf,
 end
 
-instance boolean_algebra_base_extensionality (α : Type) [boolean_algebra α] 
-  : (boolean_algebra_extensionality α (ultrafilter α)) := 
+instance boolalg_base_ext_lemmas (α : Type) [boolean_algebra α] 
+  : (boolalg_ext_lemmas α (ultrafilter α)) := 
 {
   simpl_eq := by apply rw_eq,
-  ext_top := by apply rw_top,
   ext_bot := by apply rw_bot,
   ext_sdiff := by apply rw_sdiff, 
   ext_le := by apply rw_le, 
   ext_meet := by apply rw_sup,
   ext_join := by apply rw_inf,
+}
+
+instance boolalg_base_ext_lemmas_compl (α : Type) [boolean_algebra α]  :
+  (boolalg_ext_lemmas_compl  α (ultrafilter α)) :=
+{
   ext_compl := by apply rw_compl,
+}
+
+instance boolalg_base_ext_lemmas_top (α : Type) [boolean_algebra α]  :
+  (boolalg_ext_lemmas_top  α (ultrafilter α)) :=
+{
+  ext_top := by apply rw_top,
 }
 
 end extensionality
