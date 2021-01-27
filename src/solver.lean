@@ -132,7 +132,16 @@ example (α : Type) [boolean_algebra α]  (A B C D E F G : α) :
   D ≤ Fᶜ →
   (A ⊓ F = ⊥) :=
 begin
-  tactic.timetac "big" $ solver,
+  (do
+    types <- gather_types,
+    types.mmap rewrite_for_type,
+    tactic.skip),
+  intros H1 H2 H3 H4; split; intros e;
+  specialize (H1 e);
+  specialize (H2 e);
+  specialize (H3 e);
+  specialize (H4 e); tauto!,
+
 end
 
 
