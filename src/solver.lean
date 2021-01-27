@@ -86,40 +86,44 @@ meta def rewrite_for_type (type : expr) : (tactic unit) := do
                   list.nil interactive.loc.wildcard),
   tactic.skip
 
+meta def gather_types : (tactic (list expr)) := do
+  goal <- tactic.target,
+  hyps <- tactic.local_context,
+  types <- (do 
+            types_in_expr <- (goal :: hyps).mmap boolean_algebra_types_in_expr,
+            return (unique_list (list.foldr list.append [] types_in_expr))),
+  return types
+
+meta def solver : (tactic unit) := do
+  types <- gather_types,
+  types.mmap rewrite_for_type,
+  `[finish]
+
+
 example (α : Type) [boolean_algebra α] (X Y Z P Q W : α) :
   (X ⊔ (Y ⊔ Z)) ⊔ ((W ⊓ P ⊓ Q)ᶜ ⊔ (P ⊔ W ⊔ Q)) = ⊤ :=
 begin
-  (do
-    goal <- tactic.target,
-    types <- boolean_algebra_types_in_expr goal,
-    rewrite_for_type (list.head types),
-    tactic.skip),
-  tauto!,
+  solver,
 end
 
 example (T : Type) [fintype T] [decidable_eq T] (X Y Z P Q W : finset T)  :
   (X ⊔ (Y ⊔ Z)) ⊔ ((W ⊓ P ⊓ Q)ᶜ ⊔ (P ⊔ W ⊔ Q)) = ⊤ :=
 begin
-  (do
-    goal <- tactic.target,
-    types <- boolean_algebra_types_in_expr goal,
-    rewrite_for_type (list.head types),
-    tactic.skip),  
-    tauto,
+  solver,
 end
 
 -- note the lack of fintype T here
 example (T : Type) [decidable_eq T] (X Y Z P Q W : finset T)  :
   X ≤ (X ⊔ Y) :=
 begin
-  (do
-    goal <- tactic.target,
-    types <- boolean_algebra_types_in_expr goal,
-    rewrite_for_type (list.head types),
-    tactic.skip),  
-    tauto,
+  solver,
 end
 
+example (T : Type) [decidable_eq T] (x z : T) (Y : finset T) :
+  x ∈ ({z} : finset T) → x = z :=
+begin
+  solver,
+end
 
 example (α : Type) [boolean_algebra α]  (A B C D E F G : α) :
   A ≤ B →
@@ -128,16 +132,10 @@ example (α : Type) [boolean_algebra α]  (A B C D E F G : α) :
   D ≤ Fᶜ →
   (A ⊓ F = ⊥) :=
 begin
-  (do
-    goal <- tactic.target,
-    types <- boolean_algebra_types_in_expr goal,
-    tactic.trace (unique_list types),
-    rewrite_for_type (list.head types),
-    tactic.skip), 
-  intros,
-  split; intro u,
-  tauto!, 
-end 
+  tactic.timetac "big" $ solver,
+end
+
+
 /-
 example (X₀ X₁ X₂ X₃ X₄ X₅ X₆ X₇ X₈ X₉ : α) :
   (X₀ ⊔ X₁ ⊔ (X₂ ⊓ X₃) ⊔ X₄ ⊔ X₅ ⊔ (X₆ ⊓ X₇ ⊓ X₈) ⊔ X₉)ᶜ
