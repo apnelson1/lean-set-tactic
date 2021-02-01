@@ -144,7 +144,9 @@ begin
     types <- gather_types,
     types.mmap rewrite_for_type,
     tactic.skip),
-  intros H1 H2 H3 H4; split; intros e;
+  intros H1 H2 H3 H4,
+  -- tauto!, -- here fails
+  split; intros e;
   specialize (H1 e);
   specialize (H2 e);
   specialize (H3 e);
