@@ -5,6 +5,9 @@ import tactic
 import tactic.interactive
 import .set_tactic
 
+
+universe u
+
 /-meta def simpl_tactic : tactic unit :=
 `[simp only [simpl_sdiff, simpl_eq, ext_le, ext_bot, ext_top, ext_meet, ext_join, ext_compl] at *; tauto!]-/
 
@@ -69,7 +72,7 @@ meta def boolean_algebra_types_in_expr (consider_function_types := ff) : expr �
     e_outer <- get_boolalg_typ consider_function_types e,
     return (e_inner ++ e_outer)
 
-def unique_list {T: Type}[decidable_eq T]: list T -> list T 
+def unique_list {T: Type*} [decidable_eq T]: list T -> list T 
 | [] := []
 | (x :: xs) := let tl := unique_list xs in
                 if list.mem x tl then tl else x :: tl
@@ -129,70 +132,191 @@ meta def set_ext (consider_function_types := ff) : (tactic unit) := do
   types.mmap rewrite_for_type,
   tactic.skip 
 
-meta def set_solver (consider_function_types := ff): (tactic unit) := do
-  set_ext consider_function_types,
-  `[finish]
 
-example (α : Type) [boolean_algebra α] (X Y Z P Q W : α) :
+meta def specialize_all (ename : expr) : (tactic unit) := do
+  context <- tactic.local_context,
+  context.mmap (fun hyp, tactic.try $ do
+    pf <- tactic.to_expr ``(%%hyp %%ename),
+    tactic.note `H none pf,
+    tactic.skip),
+  tactic.skip
+
+meta def introduce_and_specialize : (tactic unit) := do 
+  target <- tactic.target,
+  match target with
+  | expr.lam nm _ argtyp body := do
+    let basename := (if (nm.to_string = "ᾰ") then `H else nm) in do
+    fname <- tactic.get_unused_name basename,
+    exp <- tactic.intro fname,
+    specialize_all exp
+  | expr.pi nm _ argtyp body := do
+    let basename := (if (nm.to_string = "ᾰ") then `H else nm) in do
+    fname <- tactic.get_unused_name basename,
+    ename <- tactic.intro fname,
+    specialize_all ename
+  | _ := tactic.fail "goal not an abstraction"
+  end
+
+meta def clear_existential_hyp (hyp : expr) : (tactic (option expr)) := do
+  htyp <- tactic.infer_type hyp,
+  match htyp with
+  | `(@Exists _ _) := do 
+      [(_, [witness, _])] <- tactic.cases hyp,
+      return (some witness)
+  | _ := return none
+  end
+
+meta def forall_hypotheses (f : expr -> tactic unit) : (tactic unit) := do
+  context <- tactic.local_context,
+  result <- context.mmap (fun hyp, (f hyp >> return tt) <|> return ff),
+  if (result.filter (fun (x : bool), x)).empty then 
+    tactic.fail "could not apply function to any hypothesis" 
+  else tactic.skip
+
+meta def clear_existentials_hyp_and_specialize : (tactic unit) := do
+  forall_hypotheses (fun hyp, 
+    do some witness <- clear_existential_hyp hyp, specialize_all witness
+  ) <|> tactic.fail "no existentials present"
+
+meta def clear_existential_goal : (tactic unit) := do
+  target <- tactic.target,
+  match target with
+  | `(@Exists %%typ _) := do
+    mvar <- tactic.mk_meta_var typ,
+    tactic.existsi mvar,
+    tactic.skip
+  | _ := tactic.fail "goal is not existential"
+  end
+
+meta def split_hypothesis (hyp : expr) : (tactic unit) := do
+  htyp <- tactic.infer_type hyp,
+  match htyp with
+  | `(_ /\ _) := tactic.cases hyp >> tactic.skip
+  | _ := tactic.fail "hypothesis is not conjunction"
+  end
+
+meta def split_all_hypothesis : (tactic unit) := do
+  forall_hypotheses split_hypothesis <|> tactic.fail "no conjunctions in hypothesis"
+
+meta def split_goal : (tactic unit) := do
+  target <- tactic.target,
+  match target with
+  | `(_ /\ _) := tactic.split >> tactic.skip
+  | _ := tactic.fail "not a conjunction"
+  end
+ 
+meta def finisher_step : (tactic unit) := do
+  -- push negatives everywhere
+  tactic.try `[push_neg at *],
+  tactic.try `[push_neg],
+  -- try introducing a name and specializing
+  introduce_and_specialize 
+  <|>
+  -- if that fails, eliminate existentials in the goal by filling them in
+  -- with a metavariable.
+  -- maybe: fail instead?  We can't automatically determine what should go in.
+  clear_existential_goal
+  <|>
+  -- if that fails, attempt to clear existentials
+  clear_existentials_hyp_and_specialize
+  <|>
+  -- if that fails, split all hypothesis that are conjunctions
+  split_all_hypothesis
+  <|>
+  -- if that fails, split the goal if it is a conjunction
+  split_goal
+  <|>
+  -- if that fails, run tauto.
+  -- TODO: fill in metavariables somehow introduced by existentials????
+  -- this can be hard.
+  `[tauto! {closer := tactic.tidy}]
+
+meta def set_solver_finisher : (tactic unit) := do
+  tactic.repeat finisher_step,
+  -- we may have a list of goals -- we need to finish all of them
+  -- in order to succeed.
+  tactic.all_goals $ (
+    tactic.target >>= (fun (target : expr),
+    match target with
+    -- if there is a disjunction in the goal, try either side
+    | `(_ \/ _) := ((tactic.left >> set_solver_finisher) <|> (tactic.right >> set_solver_finisher)) >> tactic.skip
+    -- if there is a disjucntion in the hypothesis, split it and make sure both sides work.
+    | _ := (do 
+      mvar1 <- tactic.mk_mvar,
+      mvar2 <- tactic.mk_mvar,
+      disj <- tactic.find_assumption `(%%mvar1 \/ %%mvar2),
+      -- if we can't find such as disjunction, then we fail as the finisher could not work.
+      tactic.cases disj [],
+      tactic.all_goals set_solver_finisher,
+      tactic.skip)
+    end)),
+  tactic.skip
+
+meta def set_solver (consider_function_types := ff) : (tactic unit) := do
+  set_ext consider_function_types,
+  set_solver_finisher
+
+example (α : Type*) [boolean_algebra α] (X Y Z P Q W : α) :
   (X ⊔ (Y ⊔ Z)) ⊔ ((W ⊓ P ⊓ Q)ᶜ ⊔ (P ⊔ W ⊔ Q)) = ⊤ :=
 begin
   set_solver,
 end
 
-example (T : Type) [fintype T] [decidable_eq T] (X Y Z P Q W : finset T)  :
+example (T : Type*) [fintype T] [decidable_eq T] (X Y Z P Q W : finset T)  :
   (X ⊔ (Y ⊔ Z)) ⊔ ((W ⊓ P ⊓ Q)ᶜ ⊔ (P ⊔ W ⊔ Q)) = ⊤ :=
 begin
   set_solver,
 end
 
 -- note the lack of fintype T here
-example (T : Type) [decidable_eq T] (X Y Z P Q W : finset T)  :
+example (T : Type*) [decidable_eq T] (X Y Z P Q W : finset T)  :
   (X ∪ Y) ≥ X :=
 begin
   set_solver,
 end
 
-example (T : Type) [decidable_eq T] (x z : T) (Y : set T) :
+example (T : Type*) [decidable_eq T] (x z : T) (Y : set T) :
   x ∈ ({z} : set T) → x = z :=
 begin
   set_solver,
 end
 
-example (α : Type) [boolean_algebra α]  (A B C D E F G : α) :
+example (α : Type*) [boolean_algebra α]  (A B C D E F G : α) :
   A ≤ B →
   B ≤ C →
   C ≤ D ⊓ E →
   D ≤ Fᶜ →
   (A ⊓ F = ⊥) :=
 begin
-  tactic.timetac "fast" $ `[(do
-    types <- gather_types,
-    types.mmap rewrite_for_type,
-    tactic.skip),
-  intros H1 H2 H3 H4; split; intros e;
-  specialize (H1 e);
-  specialize (H2 e);
-  specialize (H3 e);
-  specialize (H4 e); tauto!],
+  set_ext,
+  tactic.timetac "fast" $ (`[repeat {finisher_step}]),
 end
 
-example (α : Type) [boolean_algebra α]  (A B C D E F G : α) :
+example (α : Type*) [boolean_algebra α]  (A B C D E F G : α) :
   A ≤ B →
   B ≤ C →
   C ≤ D ⊓ E →
   D ≤ Fᶜ →
   (A ⊓ F = ⊥) :=
 begin
-  tactic.timetac "slow" $  set_solver,
+  tactic.timetac "slow" $ set_solver,
 end
  
-example (α : Type)(C E : set α)(hCE : C ⊓ E = ∅):
+example (α : Type*) (C E : set α) (hCE : C ⊓ E = ∅) :
   C ⊔ (E ⊔ C)ᶜ = Eᶜ := 
 by {set_solver, }
 
-example (α : Type)(C E : set α)(h : C ⊓ E = ⊥) : 
+example (α : Type*) (C E : set α) (h : C ⊓ E = ⊥) : 
   C ⊓ (C ⊔ E)ᶜ = ∅ := 
 by {set_solver, } 
+
+example (X₀ X₁ X₂ X₃ X₄ X₅ X₆ X₇ X₈ X₉ : set nat) :
+  (X₀ ⊔ X₁ ⊔ (X₂ ⊓ X₃) ⊔ X₄ ⊔ X₅ ⊔ (X₆ ⊓ X₇ ⊓ X₈) ⊔ X₉)ᶜ
+    ≤ (X₉ᶜ ⊓ ((X₆ᶜ ⊔ ⊥) ⊔ X₈ᶜ ⊔ X₇ᶜᶜᶜ) ⊓ X₅ᶜ ⊓ (X₀ᶜ \ X₁) ⊓ (X₃ᶜ ⊔ X₂ᶜ) ⊓ X₄ᶜ) :=
+begin
+  tactic.timetac "big_ext" $ set_ext,
+  tactic.timetac "big_finish" $ set_solver_finisher
+end
 
 /-
 example (X₀ X₁ X₂ X₃ X₄ X₅ X₆ X₇ X₈ X₉ : α) :
