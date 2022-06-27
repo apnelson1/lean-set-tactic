@@ -108,7 +108,7 @@ meta def rewrite_for_type (type : expr) : (tactic unit) := do
   simp_lemmas <- infer_base_simp_lemmas type,
   compl_lemmas <- infer_compl_simp_lemmas type,
   top_lemmas <- infer_top_simp_lemmas type,
-  tactic.try (tactic.interactive.simp none tt
+  tactic.try (tactic.interactive.simp none none tt
               ((simp_lemmas ++ compl_lemmas ++ top_lemmas).map tactic.simp_arg_type.expr)
                   list.nil interactive.loc.wildcard),
   tactic.skip
@@ -156,6 +156,11 @@ meta def introduce_and_specialize : (tactic unit) := do
     specialize_all ename
   | _ := tactic.fail "goal not an abstraction"
   end
+
+meta def dirty_set_solver : (tactic unit) := do
+  `[simp [set.ext_iff, set.subset_def, finset.ext_iff, finset.subset_def],
+    repeat {repeat {split}, introduce_and_specialize, repeat {split}};
+    try {itauto}; itauto! *]
 
 meta def clear_existential_hyp (hyp : expr) : (tactic (option expr)) := do
   htyp <- tactic.infer_type hyp,
@@ -265,7 +270,11 @@ end
 example (T : Type*) [fintype T] [decidable_eq T] (X Y Z P Q W : finset T)  :
   (X ⊔ (Y ⊔ Z)) ⊔ ((W ⊓ P ⊓ Q)ᶜ ⊔ (P ⊔ W ⊔ Q)) = ⊤ :=
 begin
-  set_solver,
+  -- set_solver,
+  simp [set.ext_iff, set.subset_def, finset.ext_iff, finset.subset_def],
+  repeat {repeat {split}, introduce_and_specialize, repeat {split}},
+  -- need to push fact that |- a ∈ ⊤ here, but itauto can finish the second case
+  set_solver
 end
 
 -- note the lack of fintype T here
@@ -314,8 +323,12 @@ example (X₀ X₁ X₂ X₃ X₄ X₅ X₆ X₇ X₈ X₉ : set nat) :
   (X₀ ⊔ X₁ ⊔ (X₂ ⊓ X₃) ⊔ X₄ ⊔ X₅ ⊔ (X₆ ⊓ X₇ ⊓ X₈) ⊔ X₉)ᶜ
     ≤ (X₉ᶜ ⊓ ((X₆ᶜ ⊔ ⊥) ⊔ X₈ᶜ ⊔ X₇ᶜᶜᶜ) ⊓ X₅ᶜ ⊓ (X₀ᶜ \ X₁) ⊓ (X₃ᶜ ⊔ X₂ᶜ) ⊓ X₄ᶜ) :=
 begin
+  /- repeat {simp [set.ext_iff, set.subset_def]; repeat {introduce_and_specialize}; try {split}};
+  repeat {split}; itauto, -/
+  tactic.timetac "quick_and_dirty" dirty_set_solver,
+/-
   tactic.timetac "big_ext" $ set_ext,
-  tactic.timetac "big_finish" $ set_solver_finisher
+  tactic.timetac "big_finish" $ set_solver_finisher -/
 end
 
 /-
@@ -352,3 +365,16 @@ begin
   tauto!,
 end
 -/
+
+example (α : Type*) [decidable_eq α] (A B C D E F G : set α) :
+  A ⊆ B →
+  B ⊆ C →
+  C ⊆ D ∩ E →
+  D ⊆ Fᶜ →
+  (A ∩ F = (∅ : set α)) :=
+begin
+  /- tactic.timetac "slow" $ set_solver, -/
+  /- do tactic.timetac "itauto" $ `[repeat {simp [set.ext_iff, set.subset_def]; repeat {introduce_and_specialize}; try {split}}, itauto] -/
+  tactic.timetac "quick_and_dirty" dirty_set_solver,
+end
+ 
