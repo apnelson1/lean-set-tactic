@@ -157,10 +157,47 @@ meta def introduce_and_specialize : (tactic unit) := do
   | _ := tactic.fail "goal not an abstraction"
   end
 
+
+meta def dirty_specialize_all (ename : expr) : (tactic unit) := do
+  context <- tactic.local_context,
+  context.mmap (fun hyp, tactic.try $ do
+    pf <- tactic.to_expr ``(%%hyp %%ename),
+    tactic.note `H none pf,
+    tactic.skip),
+  -- we need to introduce x ∈ ⊤ for itauto to pick it up
+  tactic.try $ (do 
+    pf <- tactic.to_expr ``(set.mem_univ %%ename),
+    tactic.note `H none pf,
+    tactic.skip),
+  tactic.try $ (do 
+    pf <- tactic.to_expr ``(finset.mem_univ %%ename),
+    tactic.note `H none pf,
+    tactic.skip),
+  tactic.skip
+
+
+meta def dirty_introduce_and_specialize : (tactic unit) := do 
+  target <- tactic.target,
+  match target with
+  | expr.lam nm _ argtyp body := do
+    let basename := (if (nm.to_string = "ᾰ") then `H else nm) in do
+    fname <- tactic.get_unused_name basename,
+    exp <- tactic.intro fname,
+    dirty_specialize_all exp
+  | expr.pi nm _ argtyp body := do
+    let basename := (if (nm.to_string = "ᾰ") then `H else nm) in do
+    fname <- tactic.get_unused_name basename,
+    ename <- tactic.intro fname,
+    dirty_specialize_all ename
+  | _ := tactic.fail "goal not an abstraction"
+  end
+
+
 meta def dirty_set_solver : (tactic unit) := do
-  `[simp [set.ext_iff, set.subset_def, finset.ext_iff, finset.subset_def],
-    repeat {repeat {split}, introduce_and_specialize, repeat {split}};
-    try {itauto}; itauto! *]
+  `[simp [set.ext_iff, set.subset_def, finset.ext_iff, finset.subset_def,
+          finset.subset_union_left, finset.subset_union_right] at *;
+    repeat {repeat {split}, dirty_introduce_and_specialize, repeat {split}};
+    try {itauto};  {itauto! *}]
 
 meta def clear_existential_hyp (hyp : expr) : (tactic (option expr)) := do
   htyp <- tactic.infer_type hyp,
@@ -270,24 +307,20 @@ end
 example (T : Type*) [fintype T] [decidable_eq T] (X Y Z P Q W : finset T)  :
   (X ⊔ (Y ⊔ Z)) ⊔ ((W ⊓ P ⊓ Q)ᶜ ⊔ (P ⊔ W ⊔ Q)) = ⊤ :=
 begin
-  -- set_solver,
-  simp [set.ext_iff, set.subset_def, finset.ext_iff, finset.subset_def],
-  repeat {repeat {split}, introduce_and_specialize, repeat {split}},
-  -- need to push fact that |- a ∈ ⊤ here, but itauto can finish the second case
-  set_solver
+  dirty_set_solver,
 end
 
 -- note the lack of fintype T here
 example (T : Type*) [decidable_eq T] (X Y Z P Q W : finset T)  :
   (X ∪ Y) ≥ X :=
 begin
-  set_solver,
+  dirty_set_solver,
 end
 
 example (T : Type*) [decidable_eq T] (x z : T) (Y : set T) :
   x ∈ ({z} : set T) → x = z :=
 begin
-  set_solver,
+  dirty_set_solver,
 end
 
 example (α : Type*) [boolean_algebra α]  (A B C D E F G : α) :
@@ -313,7 +346,7 @@ end
  
 example (α : Type*) (C E : set α) (hCE : C ⊓ E = ∅) :
   C ⊔ (E ⊔ C)ᶜ = Eᶜ := 
-by {set_solver, }
+by {dirty_set_solver, }
 
 example (α : Type*) (C E : set α) (h : C ⊓ E = ⊥) : 
   C ⊓ (C ⊔ E)ᶜ = ∅ := 
